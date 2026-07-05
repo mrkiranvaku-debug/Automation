@@ -1,0 +1,2578 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "simple": false,
+        "filters": {
+          "readStatus": "= is:unread from:no-reply@classroom.google.com -label:processed assignments"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -592,
+        288
+      ],
+      "id": "c0c26001-609a-4ed0-88ba-e7bbee3a3c98",
+      "name": "Get many messages",
+      "webhookId": "55fabaf7-f1b9-49f3-832a-65e41dbfa081",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "  return $input.all().map(item => {\n  let text = item.json.text || \"\";\n\n  text = text.replace(/\\s+/g, ' ').trim();\n  text = text.slice(0, 8000);\n\n  return {\n    json: {\n      data: text\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        240
+      ],
+      "id": "f4e0c4c2-5eab-48d4-992c-4c67df3c90bb",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        3488,
+        224
+      ],
+      "id": "da6ee38e-e08d-4358-9fb2-b4028478e3ef",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert academic tutor.\n\nThe following text was extracted from a Google Classroom assignment.\n\nYour task is to:\n\n1. Identify every activity.\n2. Identify every question.\n3. Answer every question completely.\n4. Show calculations wherever required.\n5. Explain concepts clearly.\n6. Use headings.\n7. Use bullet points.\n8. Never skip a question.\n9. And the most importantly, only give the answers dont add any other extra texts only give me the answers with their answers on their top strictly\nAssignment:\n\n Return ONLY valid HTML.\n\nDo not use markdown.\nDo not use ```html.\nDo not explain anything.\n\nStart with:\n<html>\n\nEnd with:\n</html>\n\nUse this style:\n\n- Font: Arial\n- H1 centered\n- H2 blue\n- Tables with borders\n- Use page margins\n- Add page numbers\n- Make the document look like university notes.\n\n{{$json.data}}",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3344,
+        0
+      ],
+      "id": "cef3ad38-234b-49a8-8c86-5130326aad33",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        2096,
+        32
+      ],
+      "id": "a9885bb5-af5a-4565-ab4c-998c074c76d7",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.filePath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1648,
+        -160
+      ],
+      "id": "0a0c2a0b-50ff-45c0-940f-60f16c89880d",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/classroom",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{$json.url}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        112
+      ],
+      "id": "da8094fb-6724-4ac1-89f7-e22a67de0349",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      ...$json,\n      content: $json.url\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        112
+      ],
+      "id": "41d9a026-73fc-472a-a9c7-9b29a52b2b6c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "n8nmanagementcontact@gmail.com",
+        "subject": "Assignment Solution PDF",
+        "emailType": "text",
+        "message": "Hello,  The solved assignment PDF is attached.  Generated automatically by Kiran Assignment Automation System.",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        5456,
+        528
+      ],
+      "id": "092fcf2e-cf04-4989-b6c1-cc35c8e3bc70",
+      "name": "Send a message",
+      "webhookId": "621552ee-f4e4-4e0e-a349-a645e2c6e1ae",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        752,
+        208
+      ],
+      "id": "991fe6b8-e22b-40a7-8f7a-679564ee63d3",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all()\n  .map(item => item.json.classroomLinks || [])\n  .flat()\n  .filter(url => url && url.includes(\"classroom.google.com\"))\n  .map(url => {\n    return {\n      json: {\n        ...$input.first().json,\n        url: url \n      }\n    };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        208
+      ],
+      "id": "d40a3fae-633b-474f-885c-0923282e545e",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "983df2ff-4eeb-4c92-98dd-4dbecf6d515a",
+              "leftValue": "={{$json.classroomLinks.length}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        608
+      ],
+      "id": "004d4c16-896a-4259-a862-0aee341e7cb7",
+      "name": "If1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n\n  const content =\n    (item.json.html || \"\") +\n    \" \" +\n    (item.json.text || \"\");\n\n  const allLinks = [\n    ...content.matchAll(/https?:\\/\\/[^\\s\"'<>]+/g)\n  ].map(m => m[0]);\n\n  let cleaned = [];\n\n  for (let link of allLinks) {\n\n    try {\n\n      const decoded = decodeURIComponent(link);\n\n      // Google redirect links\n      const match = decoded.match(\n        /continue=(https:\\/\\/classroom\\.google\\.com[^&\"]*)/\n      );\n\n      if (match) {\n\n        const real = match[1];\n\n        // Keep FULL assignment URLs\n        if (\n          real.includes(\"/c/\") &&\n          (\n            real.includes(\"/a/\") ||\n            real.includes(\"/details\")\n          )\n        ) {\n          cleaned.push(real);\n        }\n\n        continue;\n      }\n\n      // Direct Classroom links\n      if (\n        link.startsWith(\"https://classroom.google.com\")\n      ) {\n        cleaned.push(link);\n      }\n\n    } catch (e) {}\n\n  }\n\n  cleaned = [...new Set(cleaned)];\n\n  return {\n    json: {\n      ...item.json,\n      classroomLinks: cleaned\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        208
+      ],
+      "id": "21c49985-768d-4f20-b56d-0d7770f38bf9",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        -64
+      ],
+      "id": "b9b219f4-57bf-4c78-8d2f-353d76e237f4",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  return {\n    json: {\n      ...item.json,\n      searchText: (\n        (item.json.subject || \"\") + \" \" +\n        (item.json.text || \"\")\n      ).toLowerCase()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        288
+      ],
+      "id": "3b249936-bc62-4ab3-bb41-a0be55f1558e",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "=   {{ $json.searchText }}",
+                    "rightValue": "internship",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "d423fb4b-236d-4e5f-bb65-7de217dc3c70"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Internship"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b2d721d8-c52d-4585-9d37-515e1927d9ed",
+                    "leftValue": "= {{$json.searchText}}",
+                    "rightValue": "nptel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "NPTEL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ad3f5fc3-40fa-4fa4-a7b7-200722df9bdc",
+                    "leftValue": "= {{$json.searchText}}",
+                    "rightValue": " pinterest",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pinterest"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        -464
+      ],
+      "id": "0561744c-a0f2-406b-a388-f4692be3a338",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        -256
+      ],
+      "id": "5b422fda-043d-4b28-ac32-150eb98735dd",
+      "name": "Delete a message",
+      "webhookId": "efcee06d-5853-4bab-87eb-b88f5ae89123",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "Label_7554683337057654506"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        -640
+      ],
+      "id": "cc85ce96-af56-43a3-b2c9-5f707569c916",
+      "name": "Add label to message",
+      "webhookId": "2cab7b6f-7c3f-4ef0-b6fa-27b358617673",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "removeLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "INBOX",
+          "UNREAD"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -640
+      ],
+      "id": "b2f15cfd-7267-4429-93dd-7a72de5b1cd7",
+      "name": "Remove label from message",
+      "webhookId": "24c54c2a-0382-4ffa-8fc8-91c3b83c280b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "n8nmanagementcontact@gmail.com",
+        "subject": "=[NPTEL] {{$json.subject}}",
+        "message": "=[NPTEL] {{$json.subject}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        -448
+      ],
+      "id": "0bab7267-f5a3-4440-8b8a-c2ca67349e99",
+      "name": "Send a message1",
+      "webhookId": "f3a890b0-bc4e-41ab-9474-bca52193ce1d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3920,
+        240
+      ],
+      "id": "c723f0cb-a583-44a5-b37f-614a244d8b41",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        4320,
+        464
+      ],
+      "id": "c26be213-d48e-403b-8168-e7b01bc1e50c",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an experienced university professor, examiner, technical writer, and AI evaluator.\n\nYou have received two independent solutions to the same academic assignment.\n\nYour job is NOT to simply choose one answer.\n\nInstead:\n\n1. Carefully compare both answers.\n2. Detect factual mistakes.\n3. Detect calculation mistakes.\n4. Detect missing concepts.\n5. Remove repetitive content.\n6. Remove robotic or AI-generated sounding sentences.\n7. Rewrite everything in natural human language.\n8. Make the answer suitable for a college student.\n9. Keep all important technical details.\n10. Add any important information that both answers missed.\n\nWhile writing:\n\n\u2022 Use proper headings.\n\n\u2022 Use numbered steps.\n\n\u2022 Use bullet points.\n\n\u2022 Use tables whenever useful.\n\n \n\n \n\u2022 Make the answer look like it was written by a top university student.\n\n\u2022 Reduce AI visibility by varying sentence structures naturally instead of repeating similar phrasing.\n\n. And strictly only give the answers alone with its question no extra messages or texcts just pure as anwers and ther their questions\n\nAt the end include:\n\n \n\nFinal Answer:\nStrictly give only one of the two answers given to you and ignore that other answer and dont add that to your answer and also Generate the answer in complete HTML format.\n\n Return ONLY valid HTML.\n\nDo not use markdown.\nDo not use ```html.\nDo not explain anything.\n\nStart with:\n<html>\n\nEnd with:\n</html>\n\nUse this style:\n\n- Font: Arial\n- H1 centered\n- H2 blue\n- Tables with borders\n- Use page margins\n- Add page numbers\n- Make the document look like university notes.\n-------------------\n\nAnswer A\n\n{{$json.answer1}}\n\n-------------------\n\nAnswer B\n\n{{$json.answer2}}\nReturn ONLY one valid HTML document.\nDo not write \"Final Answer:\".\nDo not repeat the HTML.",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        4368,
+        224
+      ],
+      "id": "cde4ce5b-d42f-4734-baf2-c8eb01ddc77d",
+      "name": "Basic LLM Chain2",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-chat-v3.1",
+        "options": {
+          "maxTokens": 8000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3360,
+        272
+      ],
+      "id": "a57213e7-781f-4498-92ec-0b787b1ba4fb",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "= You are an expert academic tutor.\n\nYour task is to:\n\n1. Identify every activity.\n2. Identify every question.\n3. Answer every question completely.\n4. Show calculations wherever required.\n5. Explain concepts clearly.\n6. Use headings.\n7. Use bullet points.\n8. Never skip a question.\n9. Give longer answers for higher-mark questions.\n10. And strictly only give me the answers only no other extra texts just give me the answers with its question on the top strictly\n\n Return ONLY valid HTML.\n\nDo not use markdown.\nDo not use ```html.\nDo not explain anything.\n\nStart with:\n<html>\n\nEnd with:\n</html>\n\nUse this style:\n\n- Font: Arial\n- H1 centered\n- H2 blue\n- Tables with borders\n- Use page margins\n- Add page numbers\n- Make the document look like university notes.\n\n\nThe assignment text may not be perfectly formatted.\nIf the text is understandable, answer all questions.\n\nOnly say\n\"Unable to extract assignment properly\"\nif the text is completely unreadable or contains no questions.\n\nAssignment:\n\n{{$json.data}}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3376,
+        432
+      ],
+      "id": "b683d079-fb65-43c5-9e52-7837000e46f2",
+      "name": "Basic LLM Chain1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      answer1: $json.text\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3696,
+        112
+      ],
+      "id": "bd91ddc9-e19c-496a-9b34-faeb1de388e8",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      answer2: $json.text\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3696,
+        368
+      ],
+      "id": "38a5300c-9565-4a59-bc76-b86c32f25495",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        288,
+        480
+      ],
+      "id": "8f494005-57d6-4755-b71c-16af694c3acc",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      id: $items(\"Switch2\")[0].json.id\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        480
+      ],
+      "id": "e031c101-5129-40b0-8b55-5a9cf560c026",
+      "name": "Code in JavaScript7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "{{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "statistics and linear algebra",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "ec0daa92-060b-4f4d-bad9-4294f28bb2b4"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fe5d3763-f987-470a-9727-7d0d76af2abb",
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "database management systems",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "14bfb5df-41fa-4166-a4f6-928ddf260696",
+                    "leftValue": "={{ ($json.subject || \"\").toLowerCase()}}  ",
+                    "rightValue": "data structures",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c03729b3-725f-40c8-8191-ff439b5b9ffa",
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "software engineering",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b7fa6e40-5566-4103-a74c-15a502a73757",
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "digital design and computer organization",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d0357d44-bd1e-4060-9357-220ce9a41611",
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "universal human values ",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        48,
+        1264
+      ],
+      "id": "bd1b12e5-dc71-46f9-ab8a-16e0463c71f4",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "= {{ $json.id }}",
+        "labelIds": [
+          "Label_2578696041149893568"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        832
+      ],
+      "id": "8db5c0c4-5b90-416d-ba32-2017a0663643",
+      "name": "Add label to message1",
+      "webhookId": "184118f0-6eaf-436a-9299-a522391618a9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "= {{ $json.id }}",
+        "labelIds": [
+          "Label_3941703267014539147"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        1040
+      ],
+      "id": "abc597c6-d8af-4ea0-b3ba-774ef7506a99",
+      "name": "Add label to message2",
+      "webhookId": "7ee92ce3-4d69-4b48-9180-535e216fbf74",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "= {{ $json.id }}",
+        "labelIds": [
+          "Label_2223332145703239229"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        1232
+      ],
+      "id": "6483f330-8003-4023-b3ca-18069e9c8cd6",
+      "name": "Add label to message3",
+      "webhookId": "7ea93465-eddf-4c06-b6be-bbb653ca537a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "Label_6763414283985185286"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        1424
+      ],
+      "id": "dc6a813a-98f8-447b-9fa1-61ed8a063361",
+      "name": "Add label to message4",
+      "webhookId": "485d48cf-8428-4560-8a83-8eb19cecf46f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "Label_851656489594112646"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        1616
+      ],
+      "id": "d092911f-8002-45ae-a4db-9b607b9c3e84",
+      "name": "Add label to message5",
+      "webhookId": "350b8b56-01e0-44a5-9cb6-91cfd291ef28",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "= {{ $json.id }}",
+        "labelIds": [
+          "Label_2984947873966941830"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        1856
+      ],
+      "id": "1c25e0f7-4b35-4512-a095-78a5f1033d52",
+      "name": "Add label to message6",
+      "webhookId": "d908c4c6-14c4-4c60-948e-0510fd6f96b5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "simple": false,
+        "filters": {
+          "readStatus": "=  is:unread -from:mrkiranvaku@gmail.com -from:sec25cs019@sairamtap.edu.in"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -592,
+        -480
+      ],
+      "id": "40f87fe0-10f8-4c5a-a618-b0ab207e10bd",
+      "name": "Get many messages1",
+      "webhookId": "ce7afd49-03c5-491c-83f4-31c2fce0d6a5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": " return $input.all().map(item => {\n  return {\n    json: {\n      ...item.json,\n      searchText: (\n        (item.json.Subject || \"\") + \" \" +\n        (item.json.From || \"\") + \" \" +\n        (item.json.snippet || \"\")\n      ).toLowerCase()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        -448
+      ],
+      "id": "43223ccf-c3e2-471c-a72e-310a99789640",
+      "name": "Code in JavaScript8"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "assignment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "ba925e87-f515-43b5-a80f-67eb51ea3aab"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Assignment"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0f55dee4-333f-4d48-8391-18502c72380e",
+                    "leftValue": "={{($json.subject || \"\").toLowerCase()}}",
+                    "rightValue": "new material",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        288
+      ],
+      "id": "6fe75bcd-d4e6-408a-9c22-439a77593a25",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/html-to-pdf",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "={{$json.text}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5072,
+        96
+      ],
+      "id": "4ff482df-ee53-4f97-b8cd-9af6ca91338d",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "fileSelector": "C:\\Users\\Kiran Karthick S\\.n8n-files\\answer.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        5296,
+        96
+      ],
+      "id": "16bbd7be-1804-4280-81d7-ed4e06c68aa2",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      id: $items(\"Switch2\")[0].json.id\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        464
+      ],
+      "id": "1b1e5627-4967-44b1-b644-d72b2d969e29",
+      "name": "Code in JavaScript9"
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        480
+      ],
+      "id": "3d5b15b7-f379-47d9-a6fb-3e6b73cf1be2",
+      "name": "Mark a message as read",
+      "webhookId": "3cbb5a57-43e0-437f-9f66-bd7d82d76309",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b0d42340-6c1f-4978-a972-45ec1e6716e2",
+              "leftValue": "= {{ $json.text }}",
+              "rightValue": " YES",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2896,
+        -224
+      ],
+      "id": "3fc0484d-7b27-4d3a-9518-6cfb3308e70b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/pdf-images",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3120,
+        -272
+      ],
+      "id": "d9ca9278-c551-4367-bac6-8382e407257d",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "C:\\Users\\Kiran Karthick S\\.n8n-files\\page-*.png",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        3696,
+        -272
+      ],
+      "id": "a32bc74c-fe0a-4dee-a769-8d7d882c0a3e",
+      "name": "Read/Write Files from Disk2"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "C:\\Users\\Kiran Karthick S\\.n8n-files\\assignment.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1872,
+        -160
+      ],
+      "id": "f2b7c9d7-1027-44c4-a39b-4fe361ce59f7",
+      "name": "Read/Write Files from Disk3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3408,
+        -272
+      ],
+      "id": "0c797985-cdf8-4eb8-a988-7dfcbca46247",
+      "name": "Wait",
+      "webhookId": "e41e1fa4-9389-46ff-9e15-9c66cf964093"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1424,
+        112
+      ],
+      "id": "d5db5cdf-585f-494e-a9bc-461bc639dfb2",
+      "name": "Wait1",
+      "webhookId": "9f96d7ff-30dd-45e8-841d-ba2b64474af5"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {
+          "maxTokens": 10,
+          "responseFormat": "text",
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        0
+      ],
+      "id": "0d0b5e70-6119-411c-a9c3-32267e0e6208",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are solving a college assignment.\n\nAssignment:\n\n{{$json.answer}}\n\nAnswer all questions completely.\n\nIf an answer requires a diagram, explain how to draw it inside square brackets.\n\nReturn only the answers, and most importantly for each answers give its qustion first on the top and answer for it",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        4720,
+        -272
+      ],
+      "id": "3d8a221d-0474-4f63-9e24-eb3294324787",
+      "name": "Basic LLM Chain4"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 8000,
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        4800,
+        -48
+      ],
+      "id": "40e14786-e261-4be3-8d44-a44e16026d7e",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "OpenRouter account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "destinationKey": "image",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        3920,
+        -272
+      ],
+      "id": "55888665-d8d6-49c7-bedb-070d8a4bf100",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENROUTER_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "= {\n  \"model\": \"google/gemini-2.5-flash\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Read this assignment page carefully. Extract all questions, text, tables, figures and diagrams exactly.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/png;base64,{{$json.image}}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"max_tokens\": 2000\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4208,
+        -272
+      ],
+      "id": "1cefdcd5-e99a-4afb-b48c-6f7b48ef285f",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "jsCode": " return [\n  {\n    json: {\n      answer: $json.choices[0].message.content\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4496,
+        -272
+      ],
+      "id": "968bd17c-9654-4213-b9e3-3bdfdc6d4a40",
+      "name": "Code in JavaScript10"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an assignment classifier.\n\nDetermine whether solving this assignment requires seeing\nany diagram, graph, image, figure, table, chart, circuit,\nor visual element that already exists in the question paper.\n\nIgnore questions that merely ask the student to DRAW a diagram.\n\nReturn ONLY:\n\nYES\n\nor\n\nNO\n\nAssignment:\n{{$json.data}}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2544,
+        -224
+      ],
+      "id": "af4c610e-f0bd-4848-971d-789421adaf17",
+      "name": "Checks whether the assignment questions contains diagrams to analyse that question"
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        1360
+      ],
+      "id": "218a232d-2b70-497d-8e32-dd74a2d0c384",
+      "name": "Mark a message as read1",
+      "webhookId": "fa4ba439-d0eb-4bb9-a314-5fff5ea09079",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "144GHOrSWvQ5aaVgNRu-lKeb1_Ctal0-grb2RxHbScII",
+          "mode": "list",
+          "cachedResultName": "Assignment Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/144GHOrSWvQ5aaVgNRu-lKeb1_Ctal0-grb2RxHbScII/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/144GHOrSWvQ5aaVgNRu-lKeb1_Ctal0-grb2RxHbScII/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            " Status": "Pending",
+            " Answer PDF": "Generated",
+            "Assignment Name": "={{ $json.assignmentName }}",
+            "Professor": "={{ $json.professor }}",
+            "Received Date": "={{ $json.receivedDate }}",
+            "Due Date": "={{  $json.dueDate }}"
+          },
+          "matchingColumns": [
+            "kiran"
+          ],
+          "schema": [
+            {
+              "id": "Assignment Name",
+              "displayName": "Assignment Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Professor",
+              "displayName": "Professor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Received Date",
+              "displayName": "Received Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": " Status",
+              "displayName": " Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": " Answer PDF",
+              "displayName": " Answer PDF",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        16
+      ],
+      "id": "4605e697-659d-417d-b93e-d1f2c1223ff7",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": " return $input.all().map(item => {\n\n  const subject = item.json.Subject || \"\";\n  const from = item.json.From || \"\";\n\n  const assignmentName =\n    (subject.match(/\"([^\"]+)\"/) || [])[1] || \"\";\n\n  const professor =\n    (from.match(/\"?(.+?)\\s*\\(Classroom\\)/) || [])[1] || \"\";\n\n  const receivedDate = new Date(\n    Number(item.json.internalDate)\n  ).toLocaleDateString(\"en-GB\");\n\n  return {\n    json: {\n      ...item.json,\n      assignmentName,\n      professor,\n      receivedDate\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        16
+      ],
+      "id": "ce7f3d3f-6cc1-4d92-b846-f5046e4dccd5",
+      "name": "Code in JavaScript11"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{$json.id}}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        16
+      ],
+      "id": "604e3a0f-48dd-49f2-b1b9-a61677b60c69",
+      "name": "Get a message",
+      "webhookId": "ab280dc9-fae7-4f7d-b9c5-d07be74a914a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REMOVED_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": " return $input.all().map(item => {\n  const snippet =\n    (item.json.snippet || \"\").toLowerCase();\n\n  let dueDate = \"\";\n\n  if (snippet.includes(\"due today\")) {\n    dueDate = new Date().toLocaleDateString(\"en-GB\");\n  }\n  else if (snippet.includes(\"due tomorrow\")) {\n    const d = new Date();\n    d.setDate(d.getDate() + 1);\n\n    dueDate = d.toLocaleDateString(\"en-GB\");\n  }\n  else {\n    const match =\n      snippet.match(/due\\s+([a-z]{3}\\s+\\d{1,2})/i);\n\n    if (match) {\n      dueDate = match[1];\n    }\n  }\n\n  return {\n    json: {\n      ...item.json,\n      dueDate\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        16
+      ],
+      "id": "1529dbea-db2b-405d-91e1-b923b30c6bd0",
+      "name": "Code in JavaScript12"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.filePath}}",
+                    "rightValue": ".pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "endsWith"
+                    },
+                    "id": "e54fb41d-0453-4d7c-9913-3e085977db80"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "89372762-48e9-4e88-ab48-9ba1329fdc9c",
+                    "leftValue": "={{$json.filePath}}",
+                    "rightValue": ".doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "endsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e53dba09-cb04-43af-9674-05305287a328",
+                    "leftValue": "={{$json.filePath}}",
+                    "rightValue": ".docx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "endsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1648,
+        224
+      ],
+      "id": "0a045c81-12d1-4b13-9253-09dfcdddc99c",
+      "name": "Switch3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/extract-doc",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filePath",
+              "value": "={{ $json.filePath }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2096,
+        240
+      ],
+      "id": "73285b79-7e21-484f-b9a0-aadaa4e38749",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/extract-docx",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filePath",
+              "value": "={{ $json.filePath }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2096,
+        448
+      ],
+      "id": "fe1b086e-47df-4005-bfac-eb7708951aac",
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3120,
+        240
+      ],
+      "id": "b43b4fd4-71b2-4ab3-bef7-2da174121964",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.filePath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1872,
+        32
+      ],
+      "id": "fcd364d9-a2ce-4c5c-a199-2232556abc50",
+      "name": "Read/Write Files from Disk4"
+    },
+    {
+      "parameters": {
+        "content": "This is for materials for studing this processed that materials and add them to pe particular labesl for easier acces",
+        "height": 1296,
+        "width": 1024,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -32,
+        752
+      ],
+      "typeVersion": 1,
+      "id": "1788a63b-e238-4fec-9c4b-4140b725b973",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "This node only executes emails from that google classroom ",
+        "height": 336,
+        "width": 816,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -832,
+        208
+      ],
+      "typeVersion": 1,
+      "id": "8fcadccf-9be4-47e5-83e4-a0e2f210e906",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": " adds to google sheets and marks the email as read and checks wehter the email contains a google classroom link attac hed with it\n",
+        "height": 704,
+        "width": 928,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        16,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "ad9bd340-df87-4a20-89e9-a1103a3f07f2",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": " For only diagram contsing question assignments that needed to analyse diagrams given in that assignment question itself to undestand th equestion and answer it",
+        "height": 416,
+        "width": 2752
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2560,
+        -416
+      ],
+      "typeVersion": 1,
+      "id": "e44866b3-3865-402c-842b-3191e49b691f",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": " For assignments that conatin only the question in texts formate and nnede to analyse only the question to answer toh those question directly ",
+        "height": 672,
+        "width": 3232,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2368,
+        16
+      ],
+      "typeVersion": 1,
+      "id": "75bc7ec4-c837-486d-a61b-d859aceef9d5",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": " reads that email and opens the classroom link and saves it and detwe determines the type of doucmne t d document and executers based on the type of the document document of tht email assignment question page",
+        "height": 944,
+        "width": 1200,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1328,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "ecf3a164-253b-4904-8cb0-63a8f7ae3684",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": " That if 1 node goes here\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        192
+      ],
+      "typeVersion": 1,
+      "id": "ddf8dda3-53f9-4dd4-aa8e-6386c6ca1fbc",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "\nThis part executes emails other thean that classroom emails and ads to the respective label and does n some respective operations ",
+        "height": 672,
+        "width": 1296,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -816,
+        -768
+      ],
+      "typeVersion": 1,
+      "id": "569fb8a1-cdaf-4651-8849-1978e964936a",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Checks whether the assignment questions contains diagrams to analyse that question",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many messages1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Delete a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message": {
+      "main": [
+        [
+          {
+            "node": "Remove label from message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript7": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Add label to message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add label to message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message1": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message2": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message3": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message4": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message5": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message6": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript9",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript8": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript9": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark a message as read": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Switch3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Checks whether the assignment questions contains diagrams to analyse that question",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk2": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript10": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checks whether the assignment questions contains diagrams to analyse that question": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript11": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript12": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch3": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk4": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a30989c8-74b4-4610-bb83-01d829d943f0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c4f88af07428d31bb08f9ed80a02d55f1399d75d734d5a6f2023531e8dbc77d"
+  },
+  "nodeGroups": [],
+  "id": "sZTBexwpTFC711nT",
+  "tags": []
+}
